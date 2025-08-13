@@ -17,9 +17,9 @@ class DebugUI {
         this.helperParams = {
             gridSize: gridSize,
             gridDivisions: gridDivisions,
-            gridVisible: true,
+            gridVisible: false,
             axesSize: axesSize,
-            axesVisible: true,
+            axesVisible: false,
         };
 
         this.addGridHelper();
@@ -42,25 +42,25 @@ class DebugUI {
         folder.expanded = false;
 
         // Add bindings for size and divisions of the grid helper
-        folder.addBinding(this.helperParams, 'gridSize', { min: 1, max: 50, step: 1 })
-            .on('change', (ev) => {
-                this.addGridHelper();
-            });
+        // folder.addBinding(this.helperParams, 'gridSize', { min: 1, max: 50, step: 1 })
+        //     .on('change', (ev) => {
+        //         this.addGridHelper();
+        //     });
 
-        folder.addBinding(this.helperParams, 'gridDivisions', { min: 1, max: 50, step: 1 })
-            .on('change', (ev) => {
-                this.addGridHelper();
-            });
+        // folder.addBinding(this.helperParams, 'gridDivisions', { min: 1, max: 50, step: 1 })
+        //     .on('change', (ev) => {
+        //         this.addGridHelper();
+        //     });
 
         folder.addBinding(this.helperParams, 'gridVisible')
             .on('change', (ev) => {
                 this.gridHelper.visible = ev.value;
             });
 
-        folder.addBinding(this.helperParams, 'axesSize', { min: 1, max: 50, step: 1 })
-            .on('change', (ev) => {
-                this.addAxesHelper( ev.value);
-            });
+        // folder.addBinding(this.helperParams, 'axesSize', { min: 1, max: 50, step: 1 })
+        //     .on('change', (ev) => {
+        //         this.addAxesHelper( ev.value);
+        //     });
 
         folder.addBinding(this.helperParams, 'axesVisible')
             .on('change', (ev) => {
