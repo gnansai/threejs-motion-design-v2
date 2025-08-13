@@ -1,0 +1,29 @@
+{
+  "name": "threejs-boilerplate-vite",
+  "description": "",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build ",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gnansai/threeJs-boilerPlate-vite.git"
+  },
+  "author": "GnanaSai",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gnansai/threeJs-boilerPlate-vite/issues"
+  },
+  "homepage": "https://github.com/gnansai/threeJs-boilerPlate-vite#readme",
+  "devDependencies": {
+    "vite": "^7.0.3"
+  },
+  "dependencies": {
+    "three": "^0.178",
+    "tweakpane": "^4.0.5"
+  }
+}
