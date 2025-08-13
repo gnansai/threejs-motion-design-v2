@@ -28,8 +28,8 @@ body {
   
   right:0px;
   background-color: rgb(255, 255, 255);
-  padding: 10px;
-  padding-bottom: 6px;
+  padding: 2px;
+  /* padding-bottom: 6px; */
   border-radius: 5px;
   
   z-index:1000000;  
