@@ -61,7 +61,7 @@ body {
 
 /* avatar image rounded */
 .links img {
-  fill: #ffffff; 
+  
   border-radius: 10%; /* makes it a perfect circle */
 
 }
