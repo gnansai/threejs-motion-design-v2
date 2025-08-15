@@ -3,21 +3,16 @@ import { createScene } from "./components/scene.js";
 import { createCameraControls } from "./systems/cameraControls.js";
 import { createRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
-import { gltfLoad } from "./components/gltf_loader/gltfLoad.js";
+
 import { hdriLoad } from "./components/hdri_loader/hdri_loader.js";
-import { createCube } from "./components/cube.js";
 import { DebugUI } from "./systems/DebugUi.js";
 import { AnimLoop } from "./systems/AnimLoop.js";
-import { BoxGeometry, Color, DirectionalLight, DirectionalLightHelper, DoubleSide, GridHelper, InstancedBufferAttribute, InstancedMesh, LoopPingPong, Mesh, MeshPhysicalNodeMaterial, MeshStandardMaterial, Object3D, Plane, PlaneGeometry, ShadowMaterial, ShadowNodeMaterial } from "three/webgpu";
-import { Pane } from "tweakpane";
+import { BoxGeometry, Color, DirectionalLight, DoubleSide, InstancedBufferAttribute, InstancedMesh, Mesh, MeshPhysicalNodeMaterial, Object3D, PlaneGeometry, ShadowNodeMaterial } from "three/webgpu";
 
-
-import { XRButton } from 'three/addons/webxr/XRButton.js';
-import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 import { MathUtils } from "three";
-import { abs, color, float, If, instancedBufferAttribute, instanceIndex, mix, mod, modelScale, mul, mx_noise_float, mx_noise_vec3, objectScale, positionGeometry, positionLocal, positionWorld, remap, remapClamp, select, time, uniform, vec3 } from "three/tsl";
-import { Fn, mx_fractal_noise_float } from "three/src/nodes/TSL.js";
-import { sub } from "three/tsl";
+import { color, float, If, instancedBufferAttribute, mix, mx_noise_float, positionGeometry, remap, remapClamp, time, uniform } from "three/tsl";
+import { Fn } from "three/src/nodes/TSL.js";
+
 import { screenUV } from "three/tsl";
 
 // These variables are module-scoped: we cannot access them
@@ -26,8 +21,6 @@ let camera;
 let renderer;
 let scene;
 let controls;
-let cube;
-let tweakPaneUI;
 let loop;
 let debugUI;
 
@@ -37,21 +30,12 @@ class World {
     camera = createCamera();
     scene = createScene();
     renderer = createRenderer();
-    cube = createCube();
-    cube.position.set(5, 0, 0)
 
     loop = new AnimLoop(camera, scene, renderer);
-    loop.updatables.push(cube);
-    // tweakPaneUI = new Pane();
-
 
     debugUI = new DebugUI(scene);
-    // debugUI.addUI(cube, "cube");
     loop.updatables.push(debugUI.stats);
-    // debugUI.gridHelper.visible = false;
 
-
-    // scene.add(cube);
     //WINDOW RESIZER
     const resizer = new Resizer(container, camera, renderer);
     container.append(renderer.domElement);
@@ -63,23 +47,18 @@ class World {
   //SETS UP BACKGROUND
   async loadBackground() {
     const { background1, hdri1 } = await hdriLoad();
-    // scene.background = background1;
-    scene.background = screenUV.distance(0.5).remap(0, 0.75).mix(color(0xffffff), color(0x000000));
 
+    scene.background = screenUV.distance(0.5).remap(0, 0.75).mix(color(0xffffff), color(0x000000));
     scene.environment = hdri1;
     scene.environmentIntensity = 0.25;
   }
 
-  //GLTF LOADER
-  async loadGltf() {
-    const { loadedmodel } = await gltfLoad(renderer);
-    // scene.add(loadedmodel);
 
-    // console.log(loadedmodel)
-    // tweakPaneUI.addUI(loadedmodel, "GLTFModel");
+  async createGeometry() {
 
+    //Directional Light
     const dirLight = new DirectionalLight(0xffffff, 3);
-    dirLight.position.set(-5, 10, 0)
+    dirLight.position.set(0, 10, 0)
     dirLight.target.position.set(0, 0, 15);
     dirLight.shadow.mapSize.width = 1024;
     dirLight.shadow.mapSize.height = 1024;
@@ -91,35 +70,33 @@ class World {
     dirLight.shadow.camera.near = 0.1;
 
     dirLight.shadow.bias = -0.005;
-    // dirLight.shadow.radius = 7;
-
-    // const plane2 = new Mesh(new PlaneGeometry(50, 50), new MeshStandardMaterial({ color: 0x808080,side: DoubleSide }));
-    // plane2.position.set(10, 25, -5);
-    // plane2.castShadow = true;
-    // scene.add(plane2);
-
-    const dirLightHelper = new DirectionalLightHelper(dirLight, 5);
-    scene.add(dirLight);
     dirLight.castShadow = true;
+    scene.add(dirLight);
+    scene.add(dirLight.target);
 
+    // const dirLightHelper = new DirectionalLightHelper(dirLight, 5);
+    // scene.add(dirLightHelper);
+
+
+    //GroundPlane
     const groundGeo = new PlaneGeometry(100, 100);
     groundGeo.rotateX(MathUtils.degToRad(90));
+
     const groundGeoMat = new ShadowNodeMaterial();
-    groundGeoMat.side = DoubleSide;
-    const groundMesh = new Mesh(groundGeo, groundGeoMat);
-
     groundGeoMat.colorNode = color(0.05, 0.05, 0.05);
+    groundGeoMat.side = DoubleSide;
 
-    // groundMesh.castShadow = true;
+    const groundMesh = new Mesh(groundGeo, groundGeoMat);
     groundMesh.receiveShadow = true;
 
     scene.add(groundMesh);
 
+
+    //Instanced Mesh
     let size = 0.3;
-    let sizeOffset = size * 1.05;
+    let sizeOffset = size * 1.025;
     const cube = new BoxGeometry(size, size, size);
     const instanceMat = new MeshPhysicalNodeMaterial()
-    const cubeMesh = new Mesh(cube, instanceMat);
 
     let xAmount = 15;
     let yAmount = 25;
@@ -128,17 +105,12 @@ class World {
     let xOffset = (xAmount - 1) / 2;
     let zOffset = (zAmount - 1) / 2;
 
-
     let totalInsatances = xAmount * yAmount * zAmount;
-
-    // instanceMat.colorNode = positionLocal
-
     const instanceMesh = new InstancedMesh(cube, instanceMat, totalInsatances);
     instanceMesh.position.set(0, size / 2, 0)
 
     instanceMesh.castShadow = true;
     instanceMesh.receiveShadow = true;
-
 
     let dummy = new Object3D();
 
@@ -163,14 +135,10 @@ class World {
     }
 
     loop.updatables.push(instanceMesh);
-
-    console.log(positions)
-
     const positionAttribute = new InstancedBufferAttribute(new Float32Array(positions), 3);
     const instancePosition = instancedBufferAttribute(positionAttribute);
 
     let divisions = 1 / 3;
-
 
     const PARAMS = {
       color0: { r: 0.1, g: 0.1, b: 0.1 },
@@ -185,83 +153,61 @@ class World {
       texScale: uniform(PARAMS.texScale),
     }
 
-
-    let noiseNode = Fn(({ timeMul, texScale }) => {
-      let noise = mx_noise_float(
-        instancePosition.mul(texScale),
-        0.75,
-        0.5,);
-
-      noise = remapClamp(noise, 0, 1, 0, 1).add(time.mul(timeMul))
-
-      return noise;
-    })
-
-
-
-
-    let colors = {
+    let colorUniforms = {
       color0: uniform(new Color(PARAMS.color0.r, PARAMS.color0.g, PARAMS.color0.b)),
       color1: uniform(new Color(PARAMS.color1.r, PARAMS.color1.g, PARAMS.color1.b)),
       color2: uniform(new Color(PARAMS.color2.r, PARAMS.color2.g, PARAMS.color2.b)),
     }
 
+    //BaseNoise
+    let noiseNode = Fn(({ timeMul, texScale }) => {
+      let noise = mx_noise_float(
+        instancePosition.mul(texScale),
+        0.75,
+        0.5,);
+      noise = remapClamp(noise, 0, 1, 0, 1).add(time.mul(timeMul))
+      return noise;
+    })
+
+    //Calculate the scales of the instances
+    let posNode = Fn(() => {
+      let val = noiseNode(textureUniforms).mod(divisions).div(divisions);
+      let val1 = remap(val, 0, 1, 0, 1);
+      let val2 = remap(val, 1, 0, 0, 1);
+      let newVal = mix(val1, val2, val.greaterThan(0.5));
+      newVal = remapClamp(newVal.mul(5), 0, 0.75, 0, 1);
+      return newVal;
+    })
+
+    //Calculate colors
     let colorsNode = Fn(({ color0, color1, color2 }) => {
       let val = noiseNode(textureUniforms).mod(1);
-
       let colorNew = color0.toVar();
-
       If(val.greaterThan(divisions * 2), () => { colorNew.assign(color1) })
         .ElseIf(val.greaterThan(divisions), () => {
           colorNew.assign(color2)
         })
-
-      return colorNew;
+      let colorNew2 = mix(colorNew.mul(0.2), colorNew, posNode());
+      return colorNew2;
     })
 
-
+    //Calculate Metalness
     let metalNode = Fn(() => {
       let val = noiseNode(textureUniforms).mod(1);
       let metanless = float(0).toVar();
-
       If(val.greaterThan(divisions * 2), () => { metanless.assign(1) })
-
       return metanless;
     })
 
 
-
-    let posNode = Fn(() => {
-
-      let val = noiseNode(textureUniforms).mod(divisions).div(divisions);
-
-      let val1 = remap(val, 0, 1, 0, 1);
-      let val2 = remap(val, 1, 0, 0, 1);
-
-      let newVal = mix(val1, val2, val.greaterThan(0.5));
-
-
-
-      newVal = remapClamp(newVal.mul(5), 0, 1, 0, 1);
-
-      return newVal;
-    })
-
-
-
-    // instanceMat.colorNode = noiseNode();
-    instanceMat.colorNode = colorsNode(colors);
-    // instanceMat.colorNode = posNode(colors);
-
+    instanceMat.colorNode = colorsNode(colorUniforms);
     instanceMat.metalnessNode = metalNode();
-    instanceMat.roughnessNode = remapClamp(metalNode().oneMinus(), 0, 1, 0.25,0.5);
-
-
+    instanceMat.roughnessNode = remapClamp(metalNode().oneMinus(), 0, 1, 0.25, 0.5);
 
     instanceMat.positionNode = positionGeometry.mul(posNode());
     scene.add(instanceMesh);
 
-
+    //TweakPane UI
     let instanceControlls = debugUI.tweakPaneUI.addFolder({
       title: "Instance Controls"
     });
@@ -269,20 +215,20 @@ class World {
     instanceControlls.addBinding(PARAMS, 'color0', {
       color: { type: 'float' },
     }).on('change', (ev) => {
-      colors.color0.value.set(ev.value.r, ev.value.g, ev.value.b);
+      colorUniforms.color0.value.set(ev.value.r, ev.value.g, ev.value.b);
     });
 
 
     instanceControlls.addBinding(PARAMS, 'color1', {
       color: { type: 'float' },
     }).on('change', (ev) => {
-      colors.color1.value.set(ev.value.r, ev.value.g, ev.value.b);
+      colorUniforms.color1.value.set(ev.value.r, ev.value.g, ev.value.b);
     });
 
     instanceControlls.addBinding(PARAMS, 'color2', {
       color: { type: 'float' },
     }).on('change', (ev) => {
-      colors.color2.value.set(ev.value.r, ev.value.g, ev.value.b);
+      colorUniforms.color2.value.set(ev.value.r, ev.value.g, ev.value.b);
     });
 
 
@@ -295,9 +241,6 @@ class World {
       .on('change', (ev) => {
         textureUniforms.texScale.value = ev.value;
       });
-
-
-
 
   }
 
