@@ -7,10 +7,10 @@ import { Resizer } from "./systems/Resizer.js";
 import { hdriLoad } from "./components/hdri_loader/hdri_loader.js";
 import { DebugUI } from "./systems/DebugUi.js";
 import { AnimLoop } from "./systems/AnimLoop.js";
-import { BoxGeometry, Color, DirectionalLight, DoubleSide, InstancedBufferAttribute, InstancedMesh, Mesh, MeshPhysicalNodeMaterial, Object3D, PlaneGeometry, ShadowNodeMaterial } from "three/webgpu";
+import { BoxGeometry, Color, DirectionalLight, DoubleSide, InstancedBufferAttribute, InstancedMesh, Matrix4, Mesh, MeshPhysicalNodeMaterial, Object3D, PlaneGeometry, Raycaster, ShadowNodeMaterial, Vector2, Vector3 } from "three/webgpu";
 
 import { MathUtils } from "three";
-import { color, float, If, instancedBufferAttribute, mix, mx_noise_float, positionGeometry, remap, remapClamp, time, uniform } from "three/tsl";
+import { color, distance, float, If, instance, instancedBufferAttribute, instanceIndex, mix, mx_noise_float, positionGeometry, remap, remapClamp, time, uniform, vec3 } from "three/tsl";
 import { Fn } from "three/src/nodes/TSL.js";
 
 import { screenUV } from "three/tsl";
@@ -23,6 +23,7 @@ let scene;
 let controls;
 let loop;
 let debugUI;
+let domContainer
 
 
 class World {
@@ -30,6 +31,7 @@ class World {
     camera = createCamera();
     scene = createScene();
     renderer = createRenderer();
+    domContainer = container;
 
     loop = new AnimLoop(camera, scene, renderer);
 
@@ -38,7 +40,7 @@ class World {
 
     //WINDOW RESIZER
     const resizer = new Resizer(container, camera, renderer);
-    container.append(renderer.domElement);
+    domContainer.append(renderer.domElement);
 
     controls = createCameraControls(camera, renderer.domElement);
     loop.updatables.push(controls);
@@ -106,11 +108,11 @@ class World {
     let zOffset = (zAmount - 1) / 2;
 
     let totalInsatances = xAmount * yAmount * zAmount;
-    const instanceMesh = new InstancedMesh(cube, instanceMat, totalInsatances);
-    instanceMesh.position.set(0, size / 2, 0)
+    const instances = new InstancedMesh(cube, instanceMat, totalInsatances);
+    instances.position.set(0, size / 2, 0)
 
-    instanceMesh.castShadow = true;
-    instanceMesh.receiveShadow = true;
+    instances.castShadow = true;
+    instances.receiveShadow = true;
 
     let dummy = new Object3D();
 
@@ -124,17 +126,16 @@ class World {
           positions.push(dummy.position.x, dummy.position.y, dummy.position.z);
           // dummy.scale.set(0.5,0.5,0.5);
           dummy.updateMatrix();
-          instanceMesh.setMatrixAt(i, dummy.matrix);
+          instances.setMatrixAt(i, dummy.matrix);
           i++
         }
       }
     }
 
-    instanceMesh.tick = () => {
-      instanceMesh.rotateY(0.002);
-    }
+    // instances.instanceMatrix.needsUpdate = true;
+    // instances.computeBoundingSphere();
 
-    loop.updatables.push(instanceMesh);
+
     const positionAttribute = new InstancedBufferAttribute(new Float32Array(positions), 3);
     const instancePosition = instancedBufferAttribute(positionAttribute);
 
@@ -160,34 +161,36 @@ class World {
     }
 
     //BaseNoise
-    let noiseNode = Fn(({ timeMul, texScale }) => {
+    let noiseNode = Fn(() => {
       let noise = mx_noise_float(
-        instancePosition.mul(texScale),
+        instancePosition.mul(textureUniforms.texScale),
         0.75,
         0.5,);
-      noise = remapClamp(noise, 0, 1, 0, 1).add(time.mul(timeMul))
+      noise = remapClamp(noise, 0, 1, 0, 1).mul(instanceDisatnce()).add(time.mul(textureUniforms.timeMul))
       return noise;
     })
 
     //Calculate the scales of the instances
     let posNode = Fn(() => {
-      let val = noiseNode(textureUniforms).mod(divisions).div(divisions);
+      let val = noiseNode().mod(divisions).div(divisions);
       let val1 = remap(val, 0, 1, 0, 1);
       let val2 = remap(val, 1, 0, 0, 1);
       let newVal = mix(val1, val2, val.greaterThan(0.5));
       newVal = remapClamp(newVal.mul(5), 0, 0.75, 0, 1);
+
       return newVal;
     })
 
     //Calculate colors
     let colorsNode = Fn(({ color0, color1, color2 }) => {
-      let val = noiseNode(textureUniforms).mod(1);
+      let val = noiseNode().mod(1);
       let colorNew = color0.toVar();
       If(val.greaterThan(divisions * 2), () => { colorNew.assign(color1) })
         .ElseIf(val.greaterThan(divisions), () => {
           colorNew.assign(color2)
         })
       let colorNew2 = mix(colorNew.mul(0.2), colorNew, posNode());
+
       return colorNew2;
     })
 
@@ -200,12 +203,84 @@ class World {
     })
 
 
+    let instancePos = uniform(new Vector3(0, 0, 0));
+
+    let instanceDisatnce = Fn(() => {
+      let val2 = distance(instancePosition, instancePos);
+      val2 = remapClamp(val2, 0, 2, 0, 1);
+      return val2;
+    })
+
+
     instanceMat.colorNode = colorsNode(colorUniforms);
     instanceMat.metalnessNode = metalNode();
     instanceMat.roughnessNode = remapClamp(metalNode().oneMinus(), 0, 1, 0.25, 0.5);
 
     instanceMat.positionNode = positionGeometry.mul(posNode());
-    scene.add(instanceMesh);
+    scene.add(instances);
+
+    //Interactivity
+    const mouse = new Vector2(-1, -1);
+
+    const onMouseMove = function (event) {
+      event.preventDefault();
+
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    };
+
+    domContainer.addEventListener("mousemove", onMouseMove);
+
+    // For touch
+    const onTouchMove = function (event) {
+      event.preventDefault();
+
+      if (event.touches.length > 0) {
+        const touch = event.touches[0];
+        mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+      }
+    };
+
+    const onTouchEnd = function () {
+      // Reset mouse to center or neutral
+      mouse.x = -1;
+      mouse.y = -1;
+    };
+
+
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd, { passive: false });
+    document.addEventListener("touchcancel", onTouchEnd, { passive: false });
+
+    const raycaster = new Raycaster();
+    let insPos = new Vector3();
+    let matrix = new Matrix4();
+
+    instances.tick = function () {
+      instances.rotateY(0.002);
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersection = raycaster.intersectObject(instances);
+
+      let instanceId = -1;
+      controls.enabled = true;
+      instancePos.value.set(0, 0, 0);
+      if (intersection.length > 0) {
+        // Clicked an instance → disable OrbitControls
+        controls.enabled = false;
+        instanceId = intersection[0].instanceId;
+        instances.getMatrixAt(instanceId, matrix);
+        insPos.setFromMatrixPosition(matrix);
+        instancePos.value.copy(insPos)
+      }
+
+      console.log(instanceId);
+
+    }
+
+    loop.updatables.push(instances);
 
     //TweakPane UI
     let instanceControlls = debugUI.tweakPaneUI.addFolder({
