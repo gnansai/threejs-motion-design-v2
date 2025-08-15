@@ -1,12 +1,29 @@
 
+# Fun Little Project – Exploring the Possibilities of TSL
 
-Run these commands </br>
+This is a small experimental project exploring the possibilities of **TSL**.
+https://x.com/threejs/status/1956112625198358848
 
-Install dependencies </br>
-<b>npm i</b> </br>
+## Getting Started
 
-Run the Project</br>
-<b>npm run dev</b> </br>
+Run these commands in your terminal:
 
-Build the Project</br>
-<b>npm run build</b>
+### 1. Install dependencies
+
+```bash
+npm i
+````
+
+### 2. Run the project
+
+```bash
+npm run dev
+```
+
+### 3. Build the project
+
+```bash
+npm run build
+```
+
+
