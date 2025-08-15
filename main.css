@@ -21,29 +21,47 @@ body {
 
 
 
-.links{
-  margin: auto;
-  position:fixed;
-  bottom:0px;
-  
-  right:0px;
-  background-color: rgb(255, 255, 255);
-  padding: 2px;
-  /* padding-bottom: 6px; */
-  border-radius: 5px;
-  
-  z-index:1000000;  
-  color: rgb(114, 114, 114);
-    
-  
+.links {
+  margin: 0;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  /* background-color: #fff; */
+  border-radius: 8px;
+  overflow: hidden;
+  /* keeps borders clean inside rounded corners */
+  display: flex;
+  flex-direction: row;
+  box-shadow: 0 2px 8px rgb(0, 0, 0);
+  z-index: 1000000;
 }
 
-.links:hover{
+/* style for each link */
+.links a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  color: #727272;
+  text-decoration: none;
+  /* border-top: 1px solid #ddd; */
+  /* separator line */
+  transition: background 0.2s, color 0.2s;
+}
+
+
+.links:hover {
   color: rgb(0, 0, 0);
 }
 
-.image{
+.image {
   width: 50px;
- 
-  
+  fill: #ffffff;
+}
+
+/* avatar image rounded */
+.links img {
+  fill: #ffffff; 
+  border-radius: 10%; /* makes it a perfect circle */
+
 }

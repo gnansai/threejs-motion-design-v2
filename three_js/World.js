@@ -14,6 +14,7 @@ import { color, distance, float, If, instance, instancedBufferAttribute, instanc
 import { Fn } from "three/src/nodes/TSL.js";
 
 import { screenUV } from "three/tsl";
+import { createDirectionalLight } from "./components/lights.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -59,20 +60,8 @@ class World {
   async createGeometry() {
 
     //Directional Light
-    const dirLight = new DirectionalLight(0xffffff, 3);
-    dirLight.position.set(0, 10, 0)
-    dirLight.target.position.set(0, 0, 15);
-    dirLight.shadow.mapSize.width = 1024;
-    dirLight.shadow.mapSize.height = 1024;
-    dirLight.shadow.camera.left = -10;
-    dirLight.shadow.camera.right = 10;
-    dirLight.shadow.camera.top = 10;
-    dirLight.shadow.camera.bottom = -10;
-    dirLight.shadow.camera.far = 50;
-    dirLight.shadow.camera.near = 0.1;
-
-    dirLight.shadow.bias = -0.005;
-    dirLight.castShadow = true;
+    const dirLight = createDirectionalLight()
+    
     scene.add(dirLight);
     scene.add(dirLight.target);
 
@@ -160,7 +149,7 @@ class World {
       color2: uniform(new Color(PARAMS.color2.r, PARAMS.color2.g, PARAMS.color2.b)),
     }
 
-    //BaseNoise
+    //BaseNoise TSL
     let noiseNode = Fn(() => {
       let noise = mx_noise_float(
         instancePosition.mul(textureUniforms.texScale),
@@ -170,7 +159,7 @@ class World {
       return noise;
     })
 
-    //Calculate the scales of the instances
+    //Calculate the scales of the instances TSL
     let posNode = Fn(() => {
       let val = noiseNode().mod(divisions).div(divisions);
       let val1 = remap(val, 0, 1, 0, 1);
@@ -181,7 +170,7 @@ class World {
       return newVal;
     })
 
-    //Calculate colors
+    //Calculate colors TSL
     let colorsNode = Fn(({ color0, color1, color2 }) => {
       let val = noiseNode().mod(1);
       let colorNew = color0.toVar();
@@ -194,7 +183,7 @@ class World {
       return colorNew2;
     })
 
-    //Calculate Metalness
+    //Calculate Metalness TSL
     let metalNode = Fn(() => {
       let val = noiseNode(textureUniforms).mod(1);
       let metanless = float(0).toVar();
@@ -219,7 +208,7 @@ class World {
     instanceMat.positionNode = positionGeometry.mul(posNode());
     scene.add(instances);
 
-    //Interactivity
+    //Interactivity 
     const mouse = new Vector2(-1, -1);
 
     const onMouseMove = function (event) {
@@ -276,7 +265,7 @@ class World {
         instancePos.value.copy(insPos)
       }
 
-      console.log(instanceId);
+      // console.log(instanceId);
 
     }
 
